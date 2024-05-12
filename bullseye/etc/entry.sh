@@ -30,11 +30,46 @@ fi
 if [[ ! -f "${STEAMAPPDIR}/post.sh" ]] ; then
     cp /etc/post.sh "${STEAMAPPDIR}/post.sh"
 fi
+if [[ ! -f "${STEAMAPPDIR}/version.ini" ]] ; then
+    cp /etc/version.ini "${STEAMAPPDIR}/helper/version.ini"
+fi
 
 # Download and extract custom config bundle
 if [[ ! -z $CS2_CFG_URL ]]; then
     echo "Downloading config pack from ${CS2_CFG_URL}"
     wget -qO- "${CS2_CFG_URL}" | tar xvzf - -C "${STEAMAPPDIR}"
+fi
+
+# Download and extract metamod
+if [ ! -f "${STEAMAPPDIR}/game/csgo/addons/metamod.vdf" ]; then
+    METAMOD="https://mms.alliedmods.net/mmsdrop/2.0/mmsource-2.0.0-git1291-linux.tar.gz"+
+    wget -qO- "${METAMOD}" | tar xvzf - -C "${STEAMAPPDIR}/game/csgo/"
+    sed -i '/^[\t]*Game[\t]\+csgo[\t]*$/i\                        Game    csgo/addons/metamod' "${STEAMAPPDIR}/game/csgo/gameinfo.gi"
+
+fi
+
+if [[ ! -z $CS2_UPDATE_CSS ]]; then
+# Download CounterStrikeSharp Updates
+    VERSION_FILE="${STEAMAPPDIR}/"helper/version.ini
+    CSS_KEY="css"
+    css_version=$(crudini --get "${VERSION_FILE}" "${CSS_KEY}" "version")
+
+    # REPOs:
+    REPO_CSS="roflmuffin/CounterStrikeSharp"
+
+    # Fetch the latest release data using GitHub API
+    LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO_CSS/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
+
+    if [ "$LATEST_RELEASE" != "$css_version" ]; then
+        echo "Newer version available: $LATEST_RELEASE"
+        echo "Downloading $REPO_CSS $LATEST_RELEASE"
+        wget -P "${STEAMAPPDIR}/" $(curl -L -s https://api.github.com/repos/roflmuffin/CounterStrikeSharp/releases/latest | grep -o -E "https://(.*)counterstrikesharp-with-runtime-build-(.*)linux(.*).zip")
+        echo "Extracting $REPO_CSS $LATEST_RELEASE"
+        unzip -o "${STEAMAPPDIR}/counterstrikesharp-with-runtime-build-${LATEST_RELEASE}-linux-*.zip" -d "${STEAMAPPDIR}"/game/csgo/addons
+        echo "Updating Version in INI $LATEST_RELEASE"
+        crudini --set "${VERSION_FILE}" "${CSS_KEY}" "version" "$LATEST_RELEASE"   
+    fi
+
 fi
 
 # Rewrite Config Files

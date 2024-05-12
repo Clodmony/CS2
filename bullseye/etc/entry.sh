@@ -30,7 +30,8 @@ fi
 if [[ ! -f "${STEAMAPPDIR}/post.sh" ]] ; then
     cp /etc/post.sh "${STEAMAPPDIR}/post.sh"
 fi
-if [[ ! -f "${STEAMAPPDIR}/version.ini" ]] ; then
+if [[ ! -f "${STEAMAPPDIR}/helper/version.ini" ]] ; then
+    mkdir "${STEAMAPPDIR}/helper/"
     cp /etc/version.ini "${STEAMAPPDIR}/helper/version.ini"
 fi
 
@@ -42,9 +43,9 @@ fi
 
 # Download and extract metamod
 if [ ! -f "${STEAMAPPDIR}/game/csgo/addons/metamod.vdf" ]; then
-    METAMOD="https://mms.alliedmods.net/mmsdrop/2.0/mmsource-2.0.0-git1291-linux.tar.gz"+
+    METAMOD="https://mms.alliedmods.net/mmsdrop/2.0/mmsource-2.0.0-git1291-linux.tar.gz"
     wget -qO- "${METAMOD}" | tar xvzf - -C "${STEAMAPPDIR}/game/csgo/"
-    sed -i '/^[\t]*Game[\t]\+csgo[\t]*$/i\                        Game    csgo/addons/metamod' "${STEAMAPPDIR}/game/csgo/gameinfo.gi"
+    sed -i '23i\\t\t\tGame\tcsgo/addons/metamod' "${STEAMAPPDIR}/game/csgo/gameinfo.gi"
 
 fi
 
@@ -53,19 +54,22 @@ if [[ ! -z $CS2_UPDATE_CSS ]]; then
     VERSION_FILE="${STEAMAPPDIR}/"helper/version.ini
     CSS_KEY="css"
     css_version=$(crudini --get "${VERSION_FILE}" "${CSS_KEY}" "version")
+    Echo "css version " $css_version   
 
     # REPOs:
     REPO_CSS="roflmuffin/CounterStrikeSharp"
 
     # Fetch the latest release data using GitHub API
     LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO_CSS/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
+    echo $LATEST_RELEASE
 
     if [ "$LATEST_RELEASE" != "$css_version" ]; then
         echo "Newer version available: $LATEST_RELEASE"
         echo "Downloading $REPO_CSS $LATEST_RELEASE"
         wget -P "${STEAMAPPDIR}/" $(curl -L -s https://api.github.com/repos/roflmuffin/CounterStrikeSharp/releases/latest | grep -o -E "https://(.*)counterstrikesharp-with-runtime-build-(.*)linux(.*).zip")
         echo "Extracting $REPO_CSS $LATEST_RELEASE"
-        unzip -o "${STEAMAPPDIR}/counterstrikesharp-with-runtime-build-${LATEST_RELEASE}-linux-*.zip" -d "${STEAMAPPDIR}"/game/csgo/addons
+        unzip -o "${STEAMAPPDIR}/counterstrikesharp-with-runtime-build-${LATEST_RELEASE}-linux-*.zip" -d "${STEAMAPPDIR}"/game/csgo/
+        rm counterstrikesharp-with-runtime-build-${LATEST_RELEASE}-linux-*.zip
         echo "Updating Version in INI $LATEST_RELEASE"
         crudini --set "${VERSION_FILE}" "${CSS_KEY}" "version" "$LATEST_RELEASE"   
     fi
